@@ -104,16 +104,16 @@ def softmax_loss_vectorized(W, X, y, reg):
     proportion = np.exp(correct_class_score) / sum_exp_scores
     loss -= np.sum(np.log(proportion))
     
-    # calculating dW = (p - (c = correct c ? 1:0)) * x
+    # calculating dW = (p - (c = correct c ? 1 : 0)) * x
     correct_class_one_hot = np.zeros_like(scores)
     correct_class_one_hot[np.arange(num_train),y] += 1
     p = np.exp(scores) / sum_exp_scores[:,None] - correct_class_one_hot # N*C / N:1 -> N*C
     dW += X.T.dot(p) # D*N x N*C -> D*C
 
     loss /= num_train
-    loss += reg * np.sum(W * W) 
+    loss += 0.5 * reg * np.sum(W * W) 
     dW /= num_train
-    dW += reg * 2 * W
+    dW += reg * W
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 

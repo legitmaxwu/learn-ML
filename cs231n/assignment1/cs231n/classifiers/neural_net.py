@@ -82,15 +82,15 @@ class TwoLayerNet(object):
 
         # input is N*D
         
-        X = np.hstack(( X, np.ones((N,1)) ))
-        W1 = np.vstack((W1, b1))
-        W2 = np.vstack((W2, b2))
+#         X_1 = np.hstack(( X, np.ones((N,1)) ))
         
-        mid_scores = X.dot(W1)
-        mid_scores *= mid_scores > 0
-        mid_scores = np.hstack(( mid_scores, np.ones((mid_scores.shape[0], 1)) ))
-        scores = mid_scores.dot(W2)
-        
+#         mid_scores = X_1.dot( np.vstack((W1, b1)) )
+#         mid_scores_ReLU = mid_scores * (mid_scores > 0)
+#         mid_scores_1 = np.hstack(( mid_scores_ReLU, np.ones((mid_scores_ReLU.shape[0], 1)) ))
+#         scores = mid_scores_1.dot( np.vstack((W2, b2)) )
+        mid_scores = X.dot(W1) + b1
+        mid_scores_ReLU = mid_scores * (mid_scores > 0)
+        scores = mid_scores_ReLU.dot(W2) + b2        
         
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -110,11 +110,15 @@ class TwoLayerNet(object):
 
         # scores: N*C
         scores -= np.max(scores, axis=1).T[:,None] # prevent overflow
-        correct_exp_scores = np.exp(scores[np.arange(N), y])
+        exp_scores = np.exp(scores)
+        correct_exp_scores = exp_scores[np.arange(N), y]
         sum_exp_scores = np.sum( np.exp(scores), axis=1 )
-        loss = -np.sum(np.log( correct_exp_scores / sum_exp_scores ))/ N
+        
+        prob_correct = correct_exp_scores / sum_exp_scores
+        
+        loss = -np.sum(np.log( prob_correct )) / N
         # regularization
-        loss += reg * ( np.sum(W1*W1) + np.sum(W2*W2) )
+        loss += 0.5 * reg * ( np.sum(W1*W1) + np.sum(W2*W2) )
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -127,12 +131,17 @@ class TwoLayerNet(object):
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        dW2 = np.zeros_like(W2)
-        correct_class_one_hot = np.zeros_like(scores)
-        correct_class_one_hot[np.arange(N),y] += 1
-        p = np.exp(scores) / sum_exp_scores[:,None] - correct_class_one_hot # N*C / N:1 -> N*C
-        dW2 += X.T.dot(p) # D*N x N*C -> D*C
-        grads['dW2'] = dW2.T
+        p = exp_scores / sum_exp_scores[:,None]
+        p[np.arange(N),y] -= 1
+        p /= N
+        
+        grads['W2'] = mid_scores_ReLU.T.dot(p) + reg*W2
+        grads['b2'] = np.sum(p, axis=0)
+        
+        a1 = p.dot(W2.T)
+        a2 = a1 * (mid_scores > 0)
+        grads['W1'] = X.T.dot(a2) + reg*W1
+        grads['b1'] = np.sum(a2, axis=0)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -177,7 +186,9 @@ class TwoLayerNet(object):
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            elems = np.random.choice(num_train, batch_size)
+            X_batch = X[elems]
+            y_batch = y[elems]
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -193,7 +204,13 @@ class TwoLayerNet(object):
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+#             for grad in grads:
+#                 print(grad)
+#                 print(grads[grad].shape)
+            self.params['W1'] -= grads['W1'] * learning_rate
+            self.params['b1'] -= grads['b1'] * learning_rate
+            self.params['W2'] -= grads['W2'] * learning_rate
+            self.params['b2'] -= grads['b2'] * learning_rate
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -239,7 +256,14 @@ class TwoLayerNet(object):
         ###########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        W1, b1 = self.params['W1'], self.params['b1']
+        W2, b2 = self.params['W2'], self.params['b2']
+        
+        h = X.dot(W1) + b1
+        h_ReLU = np.maximum(h, 0)
+        scores = h_ReLU.dot(W2) + b2
+        
+        y_pred = np.argmax(scores, axis=1)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
